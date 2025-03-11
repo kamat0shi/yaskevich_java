@@ -31,3 +31,18 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Maven
+target/
+*.iml
+*.class
+
+# IDE файлы
+.idea/
+.vscode/
+*.log
+
+# Maven Wrapper (опционально)
+.mvn/
+mvnw
+mvnw.cmd
