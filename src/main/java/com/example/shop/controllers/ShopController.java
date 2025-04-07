@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -97,6 +98,34 @@ public class ShopController {
     @PostMapping("/orders")
     public Order createOrder(@RequestBody Order order) {
         return shopService.saveOrder(order);
+    }
+
+    @GetMapping("/orders/by-product")
+    public List<Order> getOrdersByProduct(@RequestParam String productName) {
+        return shopService.getOrdersByProductName(productName);
+    }
+
+    @GetMapping("/orders/by-productN")
+    public List<Order> getOrdersByProductNameNative(@RequestParam String productName) {
+        return shopService.getOrdersByProductNameNative(productName);
+    }
+
+    @GetMapping("/orders/by-username")
+    public ResponseEntity<List<Order>> getOrdersByUserName(@RequestParam String userName) {
+        List<Order> orders = shopService.getOrdersByUserNameCached(userName);
+        return ResponseEntity.ok(orders);
+    }
+
+    @DeleteMapping("/orders/cache/clear")
+    public ResponseEntity<String> clearOrderCache() {
+        shopService.clearOrderCache();
+        return ResponseEntity.ok("🧹 Кэш заказов очищен");
+    }
+
+    @DeleteMapping("/cache/orders-by-username")
+    public ResponseEntity<String> clearOrderUserNameCache() {
+        shopService.clearOrderByUserNameCache();
+        return ResponseEntity.ok("Кэш заказов по имени пользователя очищен");
     }
 
     @GetMapping("/categories")
