@@ -1,6 +1,8 @@
 package com.example.shop.services;
 
 import com.example.shop.models.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.example.shop.models.Order;
 import com.example.shop.models.Product;
 import com.example.shop.models.User;
@@ -22,6 +24,7 @@ public class ShopService {
 
     private final Map<String, List<Order>> orderCache = new HashMap<>();
     private final Map<String, List<Order>> orderByUserNameCache = new HashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(ShopService.class);
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
@@ -100,10 +103,10 @@ public class ShopService {
 
     public List<Order> getOrdersByUserNameCached(String userName) {
         if (orderByUserNameCache.containsKey(userName)) {
-            System.out.println("📦 Кэш: заказы пользователя с именем: " + userName);
+            logger.info("📦 Кэш: заказы пользователя с именем: {}", userName);
             return orderByUserNameCache.get(userName);
         }
-        System.out.println("🗃️ Запрос в БД: " + userName);
+        logger.info("🗃️ Запрос в БД: {}", userName);
     
         List<Order> orders = orderRepository.findOrdersByUserName(userName);
         orderByUserNameCache.put(userName, orders);
@@ -112,7 +115,7 @@ public class ShopService {
 
     public void clearOrderByUserNameCache() {
         orderByUserNameCache.clear();
-        System.out.println("🧹 Кэш заказов по имени пользователя очищен");
+        logger.info("🧹 Кэш заказов по имени пользователя очищен");
     }
 
     public List<Order> getAllOrders() {
@@ -133,18 +136,19 @@ public class ShopService {
         order.setProducts(realProducts);
     
         orderCache.clear();
-        System.out.println("✅ Кэш заказов очищен после создания нового заказа");
+        orderByUserNameCache.clear();
+        logger.info("✅ Кэш заказов очищен после создания нового заказа");
     
         return orderRepository.save(order);
     }
 
     public List<Order> getOrdersByProductName(String productName) {
         if (orderCache.containsKey(productName)) {
-            System.out.println("👉 Из кэша: " + productName);
+            logger.info("👉 Из кэша: {}", productName);
             return orderCache.get(productName);
         }
     
-        System.out.println("🗃️ Запрос в БД: " + productName);
+        logger.info("🗃️ Запрос в БД: {}", productName);
         List<Order> orders = orderRepository.findOrdersByProductName(productName);
         orderCache.put(productName, orders);
         return orders;
@@ -156,7 +160,7 @@ public class ShopService {
 
     public void clearOrderCache() {
         orderCache.clear();
-        System.out.println("🧹 Кэш заказов очищен вручную");
+        logger.info("🧹 Кэш заказов очищен вручную");
     }
 
     public List<Category> getAllCategories() {
