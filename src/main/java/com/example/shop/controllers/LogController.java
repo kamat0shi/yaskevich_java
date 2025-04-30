@@ -7,9 +7,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -24,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/logs")
 public class LogController {
 
+    private static final Path LOGS_DIR = Paths.get("logs").toAbsolutePath().normalize();
+    private static final Pattern SAFE_DATE_PATTERN = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");    
     private static final String LOG_PATH = "logs/app.log";
-    private static final DateTimeFormatter LOG_DATE_FORMAT = 
-        DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter 
+        LOG_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @GetMapping
     public ResponseEntity<InputStreamResource> getLogs(
@@ -45,30 +50,33 @@ public class LogController {
                     .body(null);
         }
 
-        File filteredLog;
         LocalDate fromDate;
         LocalDate toDate;
 
-        if (date != null) {
-            try {
-                fromDate = toDate = LocalDate.parse(date, LOG_DATE_FORMAT);
-                filteredLog = new File("logs/log-" + date + ".log");
-            } catch (Exception e) {
-                return ResponseEntity.badRequest().body(null);
-            }
+        Path filteredLogPath;
 
-        } else {
-            try {
-                fromDate = LocalDate.parse(from, LOG_DATE_FORMAT);
-                toDate = LocalDate.parse(to, LOG_DATE_FORMAT);
-                filteredLog = new File("logs/log-" + from + "_to_" + to + ".log");
-            } catch (Exception e) {
+        if (date != null) {
+            if (!SAFE_DATE_PATTERN.matcher(date).matches()) {
                 return ResponseEntity.badRequest().body(null);
             }
+            fromDate = toDate = LocalDate.parse(date, LOG_DATE_FORMAT);
+            filteredLogPath = LOGS_DIR.resolve("log-" + date + ".log").normalize();
+        } else {
+            if (!SAFE_DATE_PATTERN.matcher(from).matches()
+                 || !SAFE_DATE_PATTERN.matcher(to).matches()) {
+                return ResponseEntity.badRequest().body(null);
+            }
+            fromDate = LocalDate.parse(from, LOG_DATE_FORMAT);
+            toDate = LocalDate.parse(to, LOG_DATE_FORMAT);
+            filteredLogPath = LOGS_DIR.resolve("log-" + from + "_to_" + to + ".log").normalize();
+        }
+
+        if (!filteredLogPath.startsWith(LOGS_DIR)) {
+            return ResponseEntity.badRequest().body(null);
         }
 
         try (BufferedReader reader = new BufferedReader(new FileReader(fullLogFile));
-             PrintWriter writer = new PrintWriter(filteredLog)) {
+            PrintWriter writer = new PrintWriter(filteredLogPath.toFile())) {
 
             List<String> filteredLines = reader.lines()
                     .filter(line -> {
@@ -90,14 +98,13 @@ public class LogController {
         }
 
         try {
-            InputStreamResource resource = 
-                new InputStreamResource(new FileInputStream(filteredLog));
-
+            InputStreamResource resource =
+                 new InputStreamResource(new FileInputStream(filteredLogPath.toFile()));
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, 
-                        "attachment; filename=" + filteredLog.getName())
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .body(resource);
+                .header(HttpHeaders.CONTENT_DISPOSITION, 
+                    "attachment; filename=" + filteredLogPath.getFileName().toString())
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(resource);
 
         } catch (FileNotFoundException e) {
             return ResponseEntity.internalServerError().build();
