@@ -186,7 +186,7 @@ public class ShopService {
     public List<Order> getOrdersByProductName(String productName) {
         List<Order> cached = orderCache.getIfPresent(productName);
         if (cached != null) {
-            logger.info("👉 Из кэша: {}", productName);
+            logger.info("👉 Из кэша: {}", sanitize(productName));
             return cached;
         }
     
