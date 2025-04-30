@@ -141,11 +141,11 @@ public class ShopService {
     public List<Order> getOrdersByUserNameCached(String userName) {
         List<Order> cached = orderByUserNameCache.getIfPresent(userName);
         if (cached != null) {
-            logger.info("📦 Кэш: заказы пользователя с именем: {}", userName);
+            logger.info("📦 Кэш: заказы пользователя с именем: {}", sanitize(userName));
             return cached;
         }
     
-        logger.info("🗃️ Запрос в БД: {}", userName);
+        logger.info("🗃️ Запрос в БД: {}", sanitize(userName));
         List<Order> orders = orderRepository.findOrdersByUserName(userName);
 
         System.out.println("✅ put вызван с: " + userName);
@@ -190,7 +190,7 @@ public class ShopService {
             return cached;
         }
     
-        logger.info("🗃️ Запрос в БД: {}", productName);
+        logger.info("🗃️ Запрос в БД: {}", sanitize(productName));
         List<Order> orders = orderRepository.findOrdersByProductName(productName);
     
         System.out.println("✅ put вызван с: " + productName);
@@ -253,5 +253,9 @@ public class ShopService {
             })
             .map(productRepository::save)
             .toList();
+    }
+
+    private String sanitize(String input) {
+        return input.replaceAll("[\n\r\t]", "_").replaceAll("[^\\w@.-]", "_");
     }
 }
