@@ -1,8 +1,7 @@
 package com.example.shop.services;
 
+import com.example.shop.exceptions.NotFoundException;
 import com.example.shop.models.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.example.shop.models.Order;
 import com.example.shop.models.Product;
 import com.example.shop.models.User;
@@ -10,36 +9,42 @@ import com.example.shop.repositories.CategoryRepository;
 import com.example.shop.repositories.OrderRepository;
 import com.example.shop.repositories.ProductRepository;
 import com.example.shop.repositories.UserRepository;
-import java.util.HashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ShopService {
 
-    private final Map<String, List<Order>> orderCache = new HashMap<>();
-    private final Map<String, List<Order>> orderByUserNameCache = new HashMap<>();
     private static final Logger logger = LoggerFactory.getLogger(ShopService.class);
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final CategoryRepository categoryRepository;
+    private final Cache<String, List<Order>> orderCache;
+    private final Cache<String, List<Order>> orderByUserNameCache;
 
     @Autowired
     public ShopService(
             ProductRepository productRepository,
             UserRepository userRepository,
             OrderRepository orderRepository,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            Cache<String, List<Order>> orderCache,
+            Cache<String, List<Order>> orderByUserNameCache) {
         this.productRepository = productRepository;
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.categoryRepository = categoryRepository;
+        this.orderCache = orderCache;
+        this.orderByUserNameCache = orderByUserNameCache;
     }
 
     public List<Product> getAllProducts() {
@@ -51,16 +56,15 @@ public class ShopService {
     }
 
     public Product saveProduct(Product product) {
-        // Загружаем реальные категории из базы данных
         List<Category> realCategories = product.getCategories().stream()
             .map(c -> categoryRepository.findById(c.getId())
                 .orElseThrow(() -> new RuntimeException("Category not found with id: " 
                 + c.getId())))
             .toList();
     
-        product.setCategories(realCategories); // Устанавливаем реальные сущности
+        product.setCategories(realCategories);
     
-        return productRepository.save(product); // Сохраняем продукт
+        return productRepository.save(product);
     }
 
     public ResponseEntity<Product> updateProduct(Long id, Product updatedProduct) {
@@ -72,11 +76,44 @@ public class ShopService {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    public ResponseEntity<Void> deleteProduct(Long id) {
-        return productRepository.findById(id).map(product -> {
-            productRepository.delete(product);
-            return ResponseEntity.ok().<Void>build(); // Добавляем <Void>
-        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).<Void>build()); // Добавляем <Void>
+    @Transactional
+    public ResponseEntity<String> deleteProduct(Long id) {
+        Optional<Product> optionalProduct = productRepository.findById(id);
+
+        if (optionalProduct.isEmpty()) {
+            throw new NotFoundException("🛑 Товар с id=" + id + " не найден для удаления");
+        }
+
+        Product product = optionalProduct.get();
+
+        List<Long> affectedOrders = new ArrayList<>();
+        List<Long> deletedOrders = new ArrayList<>();
+
+        List<Order> allOrders = orderRepository.findAll();
+        for (Order order : allOrders) {
+            boolean removed = order.getProducts().removeIf(p -> p.getId().equals(product.getId()));
+            if (removed) {
+                if (order.getProducts().isEmpty()) {
+                    orderRepository.delete(order);
+                    deletedOrders.add(order.getId());
+                } else {
+                    orderRepository.save(order);
+                    affectedOrders.add(order.getId());
+                }
+            }
+        }
+
+        product.getCategories().clear();
+        productRepository.save(product);
+
+        productRepository.delete(product);
+
+        String msg = "✅ Товар с id=" + id + " удалён.\n"
+                + "Обновлены заказы: " + affectedOrders + "\n"
+                + "Удалены пустые заказы: " + deletedOrders;
+
+        logger.info(msg);
+        return ResponseEntity.ok(msg);
     }
 
     public List<User> getAllUsers() {
@@ -97,24 +134,28 @@ public class ShopService {
     public ResponseEntity<Void> deleteUser(Long id) {
         return userRepository.findById(id).map(user -> {
             userRepository.delete(user);
-            return ResponseEntity.ok().<Void>build(); // Добавляем <Void>
-        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).<Void>build()); // Добавляем <Void>
+            return ResponseEntity.ok().<Void>build();
+        }).orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
     public List<Order> getOrdersByUserNameCached(String userName) {
-        if (orderByUserNameCache.containsKey(userName)) {
+        List<Order> cached = orderByUserNameCache.getIfPresent(userName);
+        if (cached != null) {
             logger.info("📦 Кэш: заказы пользователя с именем: {}", userName);
-            return orderByUserNameCache.get(userName);
+            return cached;
         }
-        logger.info("🗃️ Запрос в БД: {}", userName);
     
+        logger.info("🗃️ Запрос в БД: {}", userName);
         List<Order> orders = orderRepository.findOrdersByUserName(userName);
+
+        System.out.println("✅ put вызван с: " + userName);
         orderByUserNameCache.put(userName, orders);
+    
         return orders;
     }
 
     public void clearOrderByUserNameCache() {
-        orderByUserNameCache.clear();
+        orderByUserNameCache.invalidateAll();
         logger.info("🧹 Кэш заказов по имени пользователя очищен");
     }
 
@@ -135,22 +176,26 @@ public class ShopService {
         order.setUser(user);
         order.setProducts(realProducts);
     
-        orderCache.clear();
-        orderByUserNameCache.clear();
+        orderCache.invalidateAll();
+        orderByUserNameCache.invalidateAll();
         logger.info("✅ Кэш заказов очищен после создания нового заказа");
     
         return orderRepository.save(order);
     }
 
     public List<Order> getOrdersByProductName(String productName) {
-        if (orderCache.containsKey(productName)) {
+        List<Order> cached = orderCache.getIfPresent(productName);
+        if (cached != null) {
             logger.info("👉 Из кэша: {}", productName);
-            return orderCache.get(productName);
+            return cached;
         }
     
         logger.info("🗃️ Запрос в БД: {}", productName);
         List<Order> orders = orderRepository.findOrdersByProductName(productName);
+    
+        System.out.println("✅ put вызван с: " + productName);
         orderCache.put(productName, orders);
+    
         return orders;
     }
 
@@ -158,8 +203,17 @@ public class ShopService {
         return orderRepository.findOrdersByProductNameNative(productName);
     }
 
+    public ResponseEntity<Void> deleteOrder(Long id) {
+        orderCache.invalidateAll();
+        return orderRepository.findById(id).map(order -> {
+            orderRepository.delete(order);
+            logger.info("🗑️ Заказ с id={} удалён", id);
+            return ResponseEntity.ok().<Void>build();
+        }).orElseThrow(() -> new NotFoundException("Заказ с id=" + id + " не найден"));
+    }
+
     public void clearOrderCache() {
-        orderCache.clear();
+        orderCache.invalidateAll();
         logger.info("🧹 Кэш заказов очищен вручную");
     }
 
@@ -169,5 +223,35 @@ public class ShopService {
 
     public Category saveCategory(Category category) {
         return categoryRepository.save(category);
+    }
+
+    public ResponseEntity<Void> deleteCategory(Long id) {
+        return categoryRepository.findById(id).map(category -> {
+            boolean usedByAnyProduct = productRepository.findAll().stream()
+                .anyMatch(product -> product.getCategories().contains(category));
+            
+            if (usedByAnyProduct) {
+                throw new IllegalStateException(
+                    "❌ Нельзя удалить категорию, она используется продуктами");
+            }
+
+            categoryRepository.delete(category);
+            return ResponseEntity.ok().<Void>build();
+        }).orElseThrow(() -> new NotFoundException("Категория с id=" + id + " не найдена"));
+    }
+
+    public List<Product> saveAllProducts(List<Product> products) {
+        return products.stream()
+            .map(product -> {
+                List<Category> realCategories = product.getCategories().stream()
+                    .map(c -> categoryRepository.findById(c.getId())
+                            .orElseThrow(() -> new RuntimeException(
+                                "Category not found with id: " + c.getId())))
+                    .toList();
+                product.setCategories(realCategories);
+                return product;
+            })
+            .map(productRepository::save)
+            .toList();
     }
 }
