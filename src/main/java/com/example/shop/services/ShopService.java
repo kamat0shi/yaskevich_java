@@ -24,13 +24,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ShopService {
 
     private static final Logger logger = LoggerFactory.getLogger(ShopService.class);
+    private static final String CATEGORY_NOT_FOUND = "Category not found with id: ";
+    private static final String USER_NOT_FOUND = "User not found";
+    private static final String PRODUCT_NOT_FOUND = "Product not found";
+
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final CategoryRepository categoryRepository;
     private final Cache<String, List<Order>> orderCache;
     private final Cache<String, List<Order>> orderByUserNameCache;
-    private static final String CATEGORY_NOT_FOUND = "Category not found with id: ";
 
     @Autowired
     public ShopService(
@@ -59,12 +62,11 @@ public class ShopService {
     public Product saveProduct(Product product) {
         List<Category> realCategories = product.getCategories().stream()
             .map(c -> categoryRepository.findById(c.getId())
-                .orElseThrow(() -> new RuntimeException(CATEGORY_NOT_FOUND 
-                + c.getId())))
+                .orElseThrow(() -> new NotFoundException(CATEGORY_NOT_FOUND + c.getId())))
             .toList();
-    
+
         product.setCategories(realCategories);
-    
+
         return productRepository.save(product);
     }
 
@@ -74,22 +76,22 @@ public class ShopService {
             return productRepository.findById(id).map(product -> {
                 product.setName(updatedProduct.getName());
                 product.setPrice(updatedProduct.getPrice());
-    
+
                 List<Category> realCategories = new ArrayList<>(
                     updatedProduct.getCategories().stream()
                         .map(c -> categoryRepository.findById(c.getId())
                             .orElseThrow(() -> new 
-                                RuntimeException(CATEGORY_NOT_FOUND + c.getId())))
+                            NotFoundException(CATEGORY_NOT_FOUND + c.getId())))
                         .toList()
                 );
-    
+
                 product.setCategories(realCategories);
-    
+
                 return ResponseEntity.ok(productRepository.save(product));
             }).orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
             logger.error("❌ Исключение при обновлении продукта: ", e);
-            throw new RuntimeException("Ошибка при обновлении продукта: " + e.getMessage(), e);
+            throw new IllegalStateException("Ошибка при обновлении продукта: " + e.getMessage(), e);
         }
     }
 
@@ -158,16 +160,20 @@ public class ShopService {
     public List<Order> getOrdersByUserNameCached(String userName) {
         List<Order> cached = orderByUserNameCache.getIfPresent(userName);
         if (cached != null) {
-            logger.info("📦 Кэш: заказы пользователя с именем: {}", sanitize(userName));
+            if (logger.isInfoEnabled()) {
+                logger.info("📦 Кэш: заказы пользователя с именем: {}", sanitize(userName));
+            }
             return cached;
         }
-    
-        logger.info("🗃️ Запрос в БД: {}", sanitize(userName));
+
+        if (logger.isInfoEnabled()) {
+            logger.info("🗃️ Запрос в БД: {}", sanitize(userName));
+        }
         List<Order> orders = orderRepository.findOrdersByUserName(userName);
 
-        System.out.println("✅ put вызван с: " + userName);
+        logger.info("✅ put вызван с: {}", userName);
         orderByUserNameCache.put(userName, orders);
-    
+
         return orders;
     }
 
@@ -183,36 +189,40 @@ public class ShopService {
     public Order saveOrder(Order order) {
         Long userId = order.getUser().getId();
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-    
+            .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND));
+
         List<Product> realProducts = order.getProducts().stream()
             .map(p -> productRepository.findById(p.getId())
-                .orElseThrow(() -> new RuntimeException("Product not found")))
+                .orElseThrow(() -> new NotFoundException(PRODUCT_NOT_FOUND)))
             .toList();
-    
+
         order.setUser(user);
         order.setProducts(realProducts);
-    
+
         orderCache.invalidateAll();
         orderByUserNameCache.invalidateAll();
         logger.info("✅ Кэш заказов очищен после создания нового заказа");
-    
+
         return orderRepository.save(order);
     }
 
     public List<Order> getOrdersByProductName(String productName) {
         List<Order> cached = orderCache.getIfPresent(productName);
         if (cached != null) {
-            logger.info("👉 Из кэша: {}", sanitize(productName));
+            if (logger.isInfoEnabled()) {
+                logger.info("👉 Из кэша: {}", sanitize(productName));
+            }
             return cached;
         }
-    
-        logger.info("🗃️ Запрос в БД: {}", sanitize(productName));
+
+        if (logger.isInfoEnabled()) {
+            logger.info("🗃️ Запрос в БД: {}", sanitize(productName));
+        }
         List<Order> orders = orderRepository.findOrdersByProductName(productName);
-    
-        System.out.println("✅ put вызван с: " + productName);
+
+        logger.info("✅ put вызван с: {}", productName);
         orderCache.put(productName, orders);
-    
+
         return orders;
     }
 
@@ -246,7 +256,7 @@ public class ShopService {
         return categoryRepository.findById(id).map(category -> {
             boolean usedByAnyProduct = productRepository.findAll().stream()
                 .anyMatch(product -> product.getCategories().contains(category));
-            
+
             if (usedByAnyProduct) {
                 throw new IllegalStateException(
                     "❌ Нельзя удалить категорию, она используется продуктами");
@@ -262,7 +272,7 @@ public class ShopService {
             .map(product -> {
                 List<Category> realCategories = product.getCategories().stream()
                     .map(c -> categoryRepository.findById(c.getId())
-                            .orElseThrow(() -> new RuntimeException(
+                            .orElseThrow(() -> new NotFoundException(
                                 CATEGORY_NOT_FOUND + c.getId())))
                     .toList();
                 product.setCategories(realCategories);
