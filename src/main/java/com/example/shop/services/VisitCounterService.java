@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class VisitCounterService {
     private static final Logger logger = LoggerFactory.getLogger(VisitCounterService.class);
     private final ConcurrentHashMap<String, AtomicInteger> counterMap = new ConcurrentHashMap<>();
-    private final RateLimiter rateLimiter = RateLimiter.create(30);
+    private final RateLimiter rateLimiter = RateLimiter.create(1000);
 
     public void recordVisit(String endpoint) {
         if (rateLimiter.tryAcquire()) {
