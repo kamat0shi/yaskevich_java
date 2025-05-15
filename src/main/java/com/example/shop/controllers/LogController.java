@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,66 +43,79 @@ public class LogController {
             return ResponseEntity.notFound().build();
         }
 
-        if (date == null && (from == null || to == null)) {
+        if (!isValidParamCombination(date, from, to)) {
             return ResponseEntity.badRequest().body(null);
         }
 
-        Path filteredLogPath;
-        LocalDate fromDate;
-        LocalDate toDate;
-
         try {
-            if (date != null) {
-                if (!SAFE_DATE_PATTERN.matcher(date).matches()) {
-                    return ResponseEntity.badRequest().body(null);
-                }
-                fromDate = toDate = LocalDate.parse(date, LOG_DATE_FORMAT);
-                filteredLogPath = LOGS_DIR.resolve("log-" + date + ".log").normalize();
-            } else {
-                if (!SAFE_DATE_PATTERN.matcher(from)    
-                    .matches() || !SAFE_DATE_PATTERN.matcher(to).matches()) {
-                    return ResponseEntity.badRequest().body(null);
-                }
-                fromDate = LocalDate.parse(from, LOG_DATE_FORMAT);
-                toDate = LocalDate.parse(to, LOG_DATE_FORMAT);
-                filteredLogPath = 
-                    LOGS_DIR.resolve("log-" + from + "_to_" + to + ".log").normalize();
-            }
-
+            Path filteredLogPath = getFilteredLogPath(date, from, to);
             if (!filteredLogPath.startsWith(LOGS_DIR)) {
-                return ResponseEntity.badRequest().body(null); // path traversal detected
+                return ResponseEntity.badRequest().body(null); // path traversal
             }
 
-            // Filter log lines by date
-            try (BufferedReader reader = new BufferedReader(new FileReader(fullLogFile));
-                 PrintWriter writer = new PrintWriter(filteredLogPath.toFile())) {
+            LocalDate fromDate = getFromDate(date, from);
+            LocalDate toDate = getToDate(date, to);
 
-                List<String> filteredLines = reader.lines()
-                        .filter(line -> {
-                            try {
-                                String datePart = line.substring(0, 10);
-                                LocalDate logDate = LocalDate.parse(datePart, LOG_DATE_FORMAT);
-                                return (logDate.isEqual(fromDate) || logDate.isAfter(fromDate)) 
-                                    &&
-                                       (logDate.isEqual(toDate) || logDate.isBefore(toDate));
-                            } catch (Exception e) {
-                                return false;
-                            }
-                        }).collect(Collectors.toList());
+            writeFilteredLogs(fullLogFile, filteredLogPath, fromDate, toDate);
 
-                filteredLines.forEach(writer::println);
-            }
-
-            InputStreamResource resource = 
-                new InputStreamResource(new FileInputStream(filteredLogPath.toFile()));
+            InputStreamResource resource = new InputStreamResource(
+                    new FileInputStream(filteredLogPath.toFile()));
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=" + filteredLogPath.getFileName().toString())
+                            "attachment; filename=" + filteredLogPath.getFileName())
                     .contentType(MediaType.TEXT_PLAIN)
                     .body(resource);
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    private boolean isValidParamCombination(String date, String from, String to) {
+        return date != null || (from != null && to != null);
+    }
+
+    private Path getFilteredLogPath(String date, String from, String to) {
+        if (date != null) {
+            validateDate(date);
+            return LOGS_DIR.resolve("log-" + date + ".log").normalize();
+        }
+        validateDate(from);
+        validateDate(to);
+        return LOGS_DIR.resolve("log-" + from + "_to_" + to + ".log").normalize();
+    }
+
+    private void validateDate(String date) {
+        if (!SAFE_DATE_PATTERN.matcher(date).matches()) {
+            throw new IllegalArgumentException("Invalid date format: " + date);
+        }
+    }
+
+    private LocalDate getFromDate(String date, String from) {
+        return LocalDate.parse(date != null ? date : from, LOG_DATE_FORMAT);
+    }
+
+    private LocalDate getToDate(String date, String to) {
+        return LocalDate.parse(date != null ? date : to, LOG_DATE_FORMAT);
+    }
+
+    private void writeFilteredLogs(File source, Path target, LocalDate fromDate, LocalDate toDate) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(source));
+            PrintWriter writer = new PrintWriter(target.toFile())) {
+
+            reader.lines()
+                    .filter(line -> isLineInRange(line, fromDate, toDate))
+                    .forEach(writer::println);
+        }
+    }
+
+    private boolean isLineInRange(String line, LocalDate fromDate, LocalDate toDate) {
+        try {
+            String datePart = line.substring(0, 10);
+            LocalDate logDate = LocalDate.parse(datePart, LOG_DATE_FORMAT);
+            return !logDate.isBefore(fromDate) && !logDate.isAfter(toDate);
+        } catch (Exception e) {
+            return false;
         }
     }
 }
