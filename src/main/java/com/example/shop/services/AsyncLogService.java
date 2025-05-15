@@ -32,7 +32,7 @@ public class AsyncLogService {
             Path outPath = LOGS_DIR.resolve("log-" + id + ".log");
             Path inPath = LOGS_DIR.resolve("app.log");
             try (BufferedReader reader = Files.newBufferedReader(inPath);
-                 PrintWriter writer = new PrintWriter(outPath.toFile())) {
+                PrintWriter writer = new PrintWriter(outPath.toFile())) {
 
                 reader.lines()
                     .filter(line -> {
@@ -48,6 +48,9 @@ public class AsyncLogService {
             }
             fileMap.put(id, outPath);
             statusMap.put(id, "DONE");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            statusMap.put(id, "ERROR");
         } catch (Exception e) {
             statusMap.put(id, "ERROR");
         }
