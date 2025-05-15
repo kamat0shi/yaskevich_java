@@ -17,21 +17,24 @@ public class LoggingAspect {
 
     @Before("execution(* com.example.shop.services.*.*(..))")
     public void logBefore(JoinPoint joinPoint) {
-        logger.info("📥 Вызов метода: {}", joinPoint.getSignature().toShortString());
+        if (logger.isInfoEnabled()) {
+            logger.info("📥 Вызов метода: {}", joinPoint.getSignature().toShortString());
+        }
     }
 
     @AfterReturning(value = "execution(* com.example.shop.services.*.*(..))", returning = "result")
     public void logAfter(JoinPoint joinPoint, Object result) {
-        logger.info(
-            "📤 Завершение метода: {} -> результат: {}", 
-            joinPoint.getSignature().toShortString(), result);
+        if (logger.isInfoEnabled()) {
+            logger.info("📤 Завершение метода: {} -> результат: {}", 
+                joinPoint.getSignature().toShortString(), result);
+        }
     }
 
     @AfterThrowing(value = "execution(* com.example.shop.services.*.*(..))", throwing = "ex")
     public void logException(JoinPoint joinPoint, Throwable ex) {
-        logger.error(
-            "❌ Ошибка в методе: {} -> {}", 
-            joinPoint.getSignature().toShortString(), ex.getMessage());
+        if (logger.isErrorEnabled()) {
+            logger.error("❌ Ошибка в методе: {} -> {}", 
+                joinPoint.getSignature().toShortString(), ex.getMessage());
+        }
     }
-
 }
