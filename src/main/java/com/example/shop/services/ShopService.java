@@ -30,6 +30,7 @@ public class ShopService {
     private final CategoryRepository categoryRepository;
     private final Cache<String, List<Order>> orderCache;
     private final Cache<String, List<Order>> orderByUserNameCache;
+    private static final String CATEGORY_NOT_FOUND = "Category not found with id: ";
 
     @Autowired
     public ShopService(
@@ -58,7 +59,7 @@ public class ShopService {
     public Product saveProduct(Product product) {
         List<Category> realCategories = product.getCategories().stream()
             .map(c -> categoryRepository.findById(c.getId())
-                .orElseThrow(() -> new RuntimeException("Category not found with id: " 
+                .orElseThrow(() -> new RuntimeException(CATEGORY_NOT_FOUND 
                 + c.getId())))
             .toList();
     
@@ -67,14 +68,6 @@ public class ShopService {
         return productRepository.save(product);
     }
 
-    // public ResponseEntity<Product> updateProduct(Long id, Product updatedProduct) {
-    //     return productRepository.findById(id).map(product -> {
-    //         product.setName(updatedProduct.getName());
-    //         product.setPrice(updatedProduct.getPrice());
-    //         product.setCategories(updatedProduct.getCategories());
-    //         return ResponseEntity.ok(productRepository.save(product));
-    //     }).orElse(ResponseEntity.notFound().build());
-    // }
     @Transactional
     public ResponseEntity<Product> updateProduct(Long id, Product updatedProduct) {
         try {
@@ -86,7 +79,7 @@ public class ShopService {
                     updatedProduct.getCategories().stream()
                         .map(c -> categoryRepository.findById(c.getId())
                             .orElseThrow(() -> new 
-                                RuntimeException("Category not found with id: " + c.getId())))
+                                RuntimeException(CATEGORY_NOT_FOUND + c.getId())))
                         .toList()
                 );
     
@@ -270,7 +263,7 @@ public class ShopService {
                 List<Category> realCategories = product.getCategories().stream()
                     .map(c -> categoryRepository.findById(c.getId())
                             .orElseThrow(() -> new RuntimeException(
-                                "Category not found with id: " + c.getId())))
+                                CATEGORY_NOT_FOUND + c.getId())))
                     .toList();
                 product.setCategories(realCategories);
                 return product;
