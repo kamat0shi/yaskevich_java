@@ -99,7 +99,8 @@ public class LogController {
         return LocalDate.parse(date != null ? date : to, LOG_DATE_FORMAT);
     }
 
-    private void writeFilteredLogs(File source, Path target, LocalDate fromDate, LocalDate toDate) throws IOException {
+    private void writeFilteredLogs(
+            File source, Path target, LocalDate fromDate, LocalDate toDate) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(source));
             PrintWriter writer = new PrintWriter(target.toFile())) {
 
