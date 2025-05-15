@@ -2,6 +2,7 @@ package com.example.shop.services;
 
 import com.google.common.util.concurrent.RateLimiter;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +27,7 @@ public class VisitCounterService {
         return counterMap.getOrDefault(endpoint, new AtomicInteger(0)).get();
     }
 
-    public ConcurrentHashMap<String, AtomicInteger> getAllStats() {
+    public ConcurrentMap<String, AtomicInteger> getAllStats() {
         return counterMap;
     }
 

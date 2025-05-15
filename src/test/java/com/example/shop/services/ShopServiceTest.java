@@ -1,6 +1,7 @@
 package com.example.shop.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 class ShopServiceTest {
@@ -237,7 +239,8 @@ class ShopServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.empty());
 
         ResponseEntity<Product> response = shopService.updateProduct(1L, new Product());
-        response.getStatusCode().value();
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 
     @Test
@@ -245,7 +248,8 @@ class ShopServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
         ResponseEntity<User> response = shopService.updateUser(1L, new User());
-        response.getStatusCode().value();
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
 
     @Test
@@ -258,8 +262,9 @@ class ShopServiceTest {
 
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
-            () -> shopService.saveProduct(product));
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            shopService.saveAllProducts(List.of(product));
+        });
 
         assertTrue(exception.getMessage().contains("Category not found"));
     }
@@ -346,8 +351,10 @@ class ShopServiceTest {
 
         when(categoryRepository.save(any(Category.class))).thenReturn(category);
 
-        Category saved = shopService.saveCategory(category);
-        assertEquals("New Category", saved.getName());
+        Category result = shopService.saveCategory(category);
+
+        assertNotNull(result);
+        assertEquals("New Category", result.getName());
     }
 
     @Test

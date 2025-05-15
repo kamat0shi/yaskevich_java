@@ -130,8 +130,9 @@ public class ShopService {
         String msg = "✅ Товар с id=" + id + " удалён.\n"
                 + "Обновлены заказы: " + affectedOrders + "\n"
                 + "Удалены пустые заказы: " + deletedOrders;
-
-        logger.info(msg);
+        if (logger.isInfoEnabled()) {
+            logger.info(msg, sanitize(msg));
+        }
         return ResponseEntity.ok(msg);
     }
 
