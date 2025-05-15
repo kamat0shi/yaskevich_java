@@ -256,15 +256,15 @@ class ShopServiceTest {
     void testSaveProduct_whenCategoryNotFound() {
         Category category = new Category();
         category.setId(99L);
-
         Product product = new Product();
         product.setCategories(List.of(category));
 
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            shopService.saveAllProducts(List.of(product));
-        });
+        List<Product> products = List.of(product); // Вынесено отдельно
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+            shopService.saveAllProducts(products)
+        );
 
         assertTrue(exception.getMessage().contains("Category not found"));
     }
