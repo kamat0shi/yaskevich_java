@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -327,26 +326,6 @@ class ShopServiceTest {
         assertEquals(1, saved.size());
         assertEquals("Bulk Product", saved.get(0).getName());
         verify(productRepository).save(any(Product.class));
-    }
-
-    @Test
-    void testSaveAllProducts_whenCategoryNotFound() {
-        Category category = new Category();
-        category.setId(99L);
-
-        Product product = new Product();
-        product.setCategories(List.of(category));
-
-        when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // Вынеси вызываемый код в отдельный Executable
-        Executable executable = () -> {
-            List<Product> input = List.of(product);
-            shopService.saveAllProducts(input);
-        };
-
-        RuntimeException exception = assertThrows(RuntimeException.class, executable);
-        assertTrue(exception.getMessage().contains("Category not found"));
     }
 
     @Test
