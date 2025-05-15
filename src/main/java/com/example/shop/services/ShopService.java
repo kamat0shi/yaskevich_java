@@ -90,7 +90,6 @@ public class ShopService {
                 return ResponseEntity.ok(productRepository.save(product));
             }).orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
-            logger.error("❌ Исключение при обновлении продукта: ", e);
             throw new IllegalStateException("Ошибка при обновлении продукта: " + e.getMessage(), e);
         }
     }
