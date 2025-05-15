@@ -170,8 +170,9 @@ public class ShopService {
             logger.info("🗃️ Запрос в БД: {}", sanitize(userName));
         }
         List<Order> orders = orderRepository.findOrdersByUserName(userName);
-
-        logger.info("✅ put вызван с: {}", userName);
+        if (logger.isInfoEnabled()) {
+            logger.info("✅ put вызван с: {}", sanitize(userName));
+        }
         orderByUserNameCache.put(userName, orders);
 
         return orders;
@@ -179,7 +180,9 @@ public class ShopService {
 
     public void clearOrderByUserNameCache() {
         orderByUserNameCache.invalidateAll();
-        logger.info("🧹 Кэш заказов по имени пользователя очищен");
+        if (logger.isInfoEnabled()) {
+            logger.info("🧹 Кэш заказов по имени пользователя очищен");
+        }
     }
 
     public List<Order> getAllOrders() {
@@ -201,7 +204,9 @@ public class ShopService {
 
         orderCache.invalidateAll();
         orderByUserNameCache.invalidateAll();
-        logger.info("✅ Кэш заказов очищен после создания нового заказа");
+        if (logger.isInfoEnabled()) {
+            logger.info("✅ Кэш заказов очищен после создания нового заказа");
+        }
 
         return orderRepository.save(order);
     }
@@ -220,7 +225,9 @@ public class ShopService {
         }
         List<Order> orders = orderRepository.findOrdersByProductName(productName);
 
-        logger.info("✅ put вызван с: {}", productName);
+        if (logger.isInfoEnabled()) {
+            logger.info("✅ put вызван с: {}", sanitize(productName));
+        }
         orderCache.put(productName, orders);
 
         return orders;
@@ -234,14 +241,18 @@ public class ShopService {
         orderCache.invalidateAll();
         return orderRepository.findById(id).map(order -> {
             orderRepository.delete(order);
-            logger.info("🗑️ Заказ с id={} удалён", id);
+            if (logger.isInfoEnabled()) {
+                logger.info("🗑️ Заказ с id={} удалён", id);
+            }
             return ResponseEntity.ok().<Void>build();
         }).orElseThrow(() -> new NotFoundException("Заказ с id=" + id + " не найден"));
     }
 
     public void clearOrderCache() {
         orderCache.invalidateAll();
-        logger.info("🧹 Кэш заказов очищен вручную");
+        if (logger.isInfoEnabled()) {
+            logger.info("🧹 Кэш заказов очищен вручную");
+        }
     }
 
     public List<Category> getAllCategories() {
