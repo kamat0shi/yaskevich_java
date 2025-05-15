@@ -1,6 +1,5 @@
 package com.example.shop.models;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -29,7 +28,7 @@ public class Product {
     @Positive(message = "Цена должна быть больше нуля")
     private Double price;
 
-    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "product_category",
         joinColumns = @JoinColumn(name = "product_id"),

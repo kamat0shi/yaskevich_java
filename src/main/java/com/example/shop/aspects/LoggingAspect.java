@@ -33,4 +33,5 @@ public class LoggingAspect {
             "❌ Ошибка в методе: {} -> {}", 
             joinPoint.getSignature().toShortString(), ex.getMessage());
     }
+
 }

@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,6 +48,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(new 
         ApiError(500, "❌ Внутренняя ошибка сервера: " + ex.getMessage()),
                 HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex) {
+        String method = ex.getMethod();
+        String supported = String.join(", ", ex.getSupportedMethods());
+        String message = "Метод " + method + " не поддерживается. Поддерживаются: " + supported;
+
+        logger.warn("⚠️ Method not allowed: {}", message);
+
+        return new ResponseEntity<>(new ApiError(405, message), HttpStatus.METHOD_NOT_ALLOWED);
     }
 
     @ExceptionHandler(NotFoundException.class)

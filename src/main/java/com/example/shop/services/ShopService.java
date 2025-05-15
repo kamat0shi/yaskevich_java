@@ -67,13 +67,37 @@ public class ShopService {
         return productRepository.save(product);
     }
 
+    // public ResponseEntity<Product> updateProduct(Long id, Product updatedProduct) {
+    //     return productRepository.findById(id).map(product -> {
+    //         product.setName(updatedProduct.getName());
+    //         product.setPrice(updatedProduct.getPrice());
+    //         product.setCategories(updatedProduct.getCategories());
+    //         return ResponseEntity.ok(productRepository.save(product));
+    //     }).orElse(ResponseEntity.notFound().build());
+    // }
+    @Transactional
     public ResponseEntity<Product> updateProduct(Long id, Product updatedProduct) {
-        return productRepository.findById(id).map(product -> {
-            product.setName(updatedProduct.getName());
-            product.setPrice(updatedProduct.getPrice());
-            product.setCategories(updatedProduct.getCategories());
-            return ResponseEntity.ok(productRepository.save(product));
-        }).orElse(ResponseEntity.notFound().build());
+        try {
+            return productRepository.findById(id).map(product -> {
+                product.setName(updatedProduct.getName());
+                product.setPrice(updatedProduct.getPrice());
+    
+                List<Category> realCategories = new ArrayList<>(
+                    updatedProduct.getCategories().stream()
+                        .map(c -> categoryRepository.findById(c.getId())
+                            .orElseThrow(() -> new 
+                                RuntimeException("Category not found with id: " + c.getId())))
+                        .toList()
+                );
+    
+                product.setCategories(realCategories);
+    
+                return ResponseEntity.ok(productRepository.save(product));
+            }).orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            logger.error("❌ Исключение при обновлении продукта: ", e);
+            throw new RuntimeException("Ошибка при обновлении продукта: " + e.getMessage(), e);
+        }
     }
 
     @Transactional
