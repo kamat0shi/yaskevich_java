@@ -261,7 +261,7 @@ class ShopServiceTest {
 
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        List<Product> products = List.of(product); // Вынесено отдельно
+        List<Product> products = List.of(product); 
         RuntimeException exception = assertThrows(RuntimeException.class, () ->
             shopService.saveAllProducts(products)
         );
