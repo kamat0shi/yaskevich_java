@@ -13,7 +13,7 @@ const ProductForm = () => {
   const [response, setResponse] = useState(null);
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/categories')
+    axios.get('/api/categories')
       .then(res => setCategories(res.data))
       .catch(err => console.error('Ошибка при загрузке категорий:', err));
   }, []);
@@ -21,7 +21,7 @@ const ProductForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:8080/api/products', {
+      const res = await axios.post('/api/products', {
         name,
         price: parseFloat(price),
         categories: selectedCategories.map(id => ({ id }))

@@ -19,13 +19,13 @@ export default function ProductList() {
   const [showForm, setShowForm] = useState(false);
 
   const fetchProducts = () => {
-    axios.get('http://localhost:8080/api/products')
+    axios.get('/api/products')
       .then(res => setProducts(res.data))
       .catch(err => console.error(err));
   };
 
   const fetchCategories = () => {
-    axios.get('http://localhost:8080/api/categories')
+    axios.get('/api/categories')
       .then(res => setCategories(res.data))
       .catch(err => console.error(err));
   };
@@ -38,7 +38,7 @@ export default function ProductList() {
   const handleDelete = async (id) => {
     if (!window.confirm('Удалить продукт?')) return;
     try {
-      await axios.delete(`http://localhost:8080/api/products/${id}`);
+      await axios.delete(`/api/products/${id}`);
       fetchProducts();
     } catch (error) {
       console.error('Ошибка при удалении:', error);
@@ -62,7 +62,7 @@ export default function ProductList() {
 
   const saveChanges = async (id) => {
     try {
-      await axios.put(`http://localhost:8080/api/products/${id}`, {
+      await axios.put(`/api/products/${id}`, {
         name: editedProduct.name,
         price: parseFloat(editedProduct.price),
         categories: editedProduct.categories.map(id => ({ id }))
@@ -77,7 +77,7 @@ export default function ProductList() {
 
   const handleAddProduct = async () => {
     try {
-      await axios.post(`http://localhost:8080/api/products`, {
+      await axios.post(`/api/products`, {
         name: newName,
         price: parseFloat(newPrice),
         categories: newCategories.map(id => ({ id }))
