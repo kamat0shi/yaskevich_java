@@ -13,7 +13,7 @@ const ProductForm = () => {
   const [response, setResponse] = useState(null);
 
   useEffect(() => {
-    axios.get('/api/categories')
+    axios.get('https://shop-service-fyuw.onrender.com/api/categories')
       .then(res => setCategories(res.data))
       .catch(err => console.error('Ошибка при загрузке категорий:', err));
   }, []);
@@ -21,7 +21,7 @@ const ProductForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('/api/products', {
+      const res = await axios.post('https://shop-service-fyuw.onrender.com/api/products', {
         name,
         price: parseFloat(price),
         categories: selectedCategories.map(id => ({ id }))

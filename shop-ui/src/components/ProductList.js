@@ -19,13 +19,13 @@ export default function ProductList() {
   const [showForm, setShowForm] = useState(false);
 
   const fetchProducts = () => {
-    axios.get('/api/products')
+    axios.get('https://shop-service-fyuw.onrender.com/api/products')
       .then(res => setProducts(res.data))
       .catch(err => console.error(err));
   };
 
   const fetchCategories = () => {
-    axios.get('/api/categories')
+    axios.get('https://shop-service-fyuw.onrender.com/api/categories')
       .then(res => setCategories(res.data))
       .catch(err => console.error(err));
   };
@@ -38,7 +38,7 @@ export default function ProductList() {
   const handleDelete = async (id) => {
     if (!window.confirm('Удалить продукт?')) return;
     try {
-      await axios.delete(`/api/products/${id}`);
+      await axios.delete(`https://shop-service-fyuw.onrender.com/api/products/${id}`);
       fetchProducts();
     } catch (error) {
       console.error('Ошибка при удалении:', error);
@@ -62,7 +62,7 @@ export default function ProductList() {
 
   const saveChanges = async (id) => {
     try {
-      await axios.put(`/api/products/${id}`, {
+      await axios.put(`https://shop-service-fyuw.onrender.com/api/products/${id}`, {
         name: editedProduct.name,
         price: parseFloat(editedProduct.price),
         categories: editedProduct.categories.map(id => ({ id }))
@@ -77,7 +77,7 @@ export default function ProductList() {
 
   const handleAddProduct = async () => {
     try {
-      await axios.post(`/api/products`, {
+      await axios.post(`https://shop-service-fyuw.onrender.com/api/products`, {
         name: newName,
         price: parseFloat(newPrice),
         categories: newCategories.map(id => ({ id }))
